@@ -15,7 +15,7 @@ END
   exit 1
 }
 
-while getopts "fd:c:" OPTION ; do
+while getopts "fc:p:" OPTION ; do
   case $OPTION in
     c)
       container_name=$OPTARG
@@ -48,7 +48,7 @@ need_build=false
 
 if [ "$force_rebuild" == "true" ]; then
   need_build=true
-elif [ -z "$(docker images | grep -E '^$container_name\s+')" ]; then
+elif [ -z "$(docker images | grep -E '^'"$container_name"'\s+')" ]; then
   # no docker containers with the term "$container_name" in their description
   need_build=true
 fi
