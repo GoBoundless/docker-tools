@@ -7,7 +7,6 @@ usage() {
   cat <<END
 Usage: $progname OPTIONS
   -c            Required: Specify the main container name. Will only be built if it doesn't exist, unless -f is passed
-  -d            Specify the data container name. Will be built if it doesn't exist
   -f            Force a rebuild of the main container, even if it exists
   -p            Path to the docker root
   -h            Display this help text
@@ -20,9 +19,6 @@ while getopts "fd:c:" OPTION ; do
   case $OPTION in
     c)
       container_name=$OPTARG
-      ;;
-    d)
-      data_container_name=$OPTARG
       ;;
     f)
       force_rebuild=true
@@ -47,13 +43,6 @@ if [ -z "$docker_root" ]; then
 fi
 
 . "$DIR/start_docker"
-
-if [ ! -z "$data_container_name" ]; then
-  if [ -z "$(docker ps -a | grep -E '\s+$data_container_name\s*$')" ]; then
-    # no docker containers with the term "$data_container_name" in their description
-    docker run --name $data_container_name -v /data phusion/baseimage:$DATA_BASE_IMAGE_VERSION echo "Data built"
-  fi
-fi
 
 need_build=false
 
