@@ -1,0 +1,9 @@
+#!/bin/bash -e
+
+DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+
+boot2docker_path=`which boot2docker` || true
+if [ -z "$boot2docker_path" ]; then
+  echo "Please install boot2docker: http://boot2docker.io/"
+  exit 1
+fi

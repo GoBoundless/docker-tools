@@ -1,0 +1,69 @@
+#!/bin/bash -e
+
+DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+DOCKER_ROOT=${DIR}/../..
+DATA_BASE_IMAGE_VERSION=0.9.17
+
+usage() {
+  cat <<END
+Usage: $progname OPTIONS
+  -c            Required: Specify the main container name. Will only be built if it doesn't exist, unless -f is passed
+  -d            Specify the data container name. Will be built if it doesn't exist
+  -f            Force a rebuild of the main container, even if it exists
+  -h            Display this help text
+${*:-}
+END
+  exit 1
+}
+
+while getopts "fd:c:" OPTION ; do
+  case $OPTION in
+    c)
+      container_name=$OPTARG
+      ;;
+    d)
+      data_container_name=$OPTARG
+      ;;
+    f)
+      force_rebuild=true
+      ;;
+    *)
+      usage
+      ;;
+  esac
+done
+
+if [ -z "$container_name" ]; then
+  echo "Please specify the container name with -c <container_name>"
+  exit 1
+fi
+
+. "$DIR/start_docker"
+
+if [ ! -z "$data_container_name" ]; then
+  if [ -z "$(docker ps -a | grep -E '\s+$data_container_name\s*$')" ]; then
+    # no docker containers with the term "$data_container_name" in their description
+    docker run --name $data_container_name -v /data phusion/baseimage:$DATA_BASE_IMAGE_VERSION echo "Data built"
+  fi
+fi
+
+need_build=false
+
+if [ "$force_rebuild" == "true" ]; then
+  need_build=true
+elif [ -z "$(docker images | grep -E '^$container_name\s+')" ]; then
+  # no docker containers with the term "$container_name" in their description
+  need_build=true
+fi
+
+if [ "$need_build" == "true" ]; then
+  # include our ssh pub file so we can ssh into the docker instance
+  mkdir -p "$DOCKER_ROOT/generated"
+
+  if [ ! -f "$DOCKER_ROOT/generated/id_rsa.pub" ]; then
+    cp ~/.ssh/id_rsa.pub "$DOCKER_ROOT/generated/id_rsa.pub"
+  fi
+
+  docker build -t $container_name "$DOCKER_ROOT"
+fi
+

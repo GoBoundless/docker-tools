@@ -1,0 +1,26 @@
+#!/bin/bash -e
+
+if [[ -z "$DOCKER_HOST" || -z "$DOCKER_CERT_PATH" || -z "$DOCKER_TLS_VERIFY" ]]; then
+  # make sure the docker vm is up and running
+  if [ ! -f "$HOME/.boot2docker/profile" ]; then
+    mkdir -p "$HOME/.boot2docker"
+    boot2docker config > $HOME/.boot2docker/profile
+  fi
+
+  # note: on OSX you need a space after -i. On linux you do not.
+  # TODO conditionalize on OS
+  sed -i '' "s#DiskSize = 20000#DiskSize = 64000#" "$HOME/.boot2docker/profile"
+
+  boot2docker init
+  boot2docker up
+  eval "$(boot2docker shellinit)"
+
+  echo ""
+  echo ""
+  echo "Docker env loaded. Note: Repeated commands will go faster if you preload the env with the following command:"
+  echo "eval \"\$(boot2docker shellinit)\""
+  echo ""
+  echo ""
+fi
+
+return 0

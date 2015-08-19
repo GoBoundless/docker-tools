@@ -1,0 +1,56 @@
+#!/bin/bash -e
+
+DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
+
+usage() {
+  cat <<END
+Usage: $progname OPTIONS
+  -c            Specify the container name to ssh into (required)
+  -u            The user to log in as, if using the default command
+  -r            Log in as root
+  -h            Display this help text
+${*:-}
+END
+  exit 1
+}
+
+while getopts "hrc:u:" OPTION ; do
+  case $OPTION in
+    r)
+      commands=
+      ;;
+    c)
+      container_name=$OPTARG
+      ;;
+    u)
+      user_name=$OPTARG
+      ;;
+    *)
+      usage
+      ;;
+  esac
+done
+
+user_name=${user_name:-root}
+commands=${commands:-su - $user_name}
+
+if [ -z "$container_name" ]; then
+  echo "Please specify the container name with -c <container_name>"
+  exit 1
+fi
+
+. "$DIR/start_docker"
+
+container_id=$(docker ps | grep -E '\s+#{container_name}\s+' | awk -F ' ' '{print $1}')
+if [ -z "$container_id" ]; then
+  echo "Unable to find a running #{container_name} container"
+  exit 1
+fi
+
+container_ip=$(docker inspect -f "{{ .NetworkSettings.IPAddress }}" $container_id)
+
+
+
+# "ForwardAgent=yes" means use the host machine (your computer)'s private key for auth when nesting tunnels
+# "StrictHostKeyChecking=no" means don't check the container's host key (since they change)
+boot2docker ssh -o ForwardAgent=yes -t ssh root@$container_ip -t -o StrictHostKeyChecking=no $commands
