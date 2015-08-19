@@ -1,7 +1,6 @@
 #!/bin/bash -e
 
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-DOCKER_ROOT=${DIR}/../..
 DATA_BASE_IMAGE_VERSION=0.9.17
 
 usage() {
@@ -10,6 +9,7 @@ Usage: $progname OPTIONS
   -c            Required: Specify the main container name. Will only be built if it doesn't exist, unless -f is passed
   -d            Specify the data container name. Will be built if it doesn't exist
   -f            Force a rebuild of the main container, even if it exists
+  -p            Path to the docker root
   -h            Display this help text
 ${*:-}
 END
@@ -27,6 +27,9 @@ while getopts "fd:c:" OPTION ; do
     f)
       force_rebuild=true
       ;;
+    p)
+      docker_root=$OPTARG
+      ;;
     *)
       usage
       ;;
@@ -35,6 +38,11 @@ done
 
 if [ -z "$container_name" ]; then
   echo "Please specify the container name with -c <container_name>"
+  exit 1
+fi
+
+if [ -z "$docker_root" ]; then
+  echo "Please specify the container name with -p <docker_root>"
   exit 1
 fi
 
@@ -58,12 +66,12 @@ fi
 
 if [ "$need_build" == "true" ]; then
   # include our ssh pub file so we can ssh into the docker instance
-  mkdir -p "$DOCKER_ROOT/generated"
+  mkdir -p "$docker_root/generated"
 
-  if [ ! -f "$DOCKER_ROOT/generated/id_rsa.pub" ]; then
-    cp ~/.ssh/id_rsa.pub "$DOCKER_ROOT/generated/id_rsa.pub"
+  if [ ! -f "$docker_root/generated/id_rsa.pub" ]; then
+    cp ~/.ssh/id_rsa.pub "$docker_root/generated/id_rsa.pub"
   fi
 
-  docker build -t $container_name "$DOCKER_ROOT"
+  docker build -t $container_name "$docker_root"
 fi
 
