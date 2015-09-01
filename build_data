@@ -1,12 +1,12 @@
 #!/bin/bash -e
 
 DIR=$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )
-DATA_BASE_IMAGE_VERSION=0.9.17
+BASE_IMAGE_VERSION=${BASE_IMAGE_VERSION:-0.9.17}
 
 usage() {
   cat <<END
 Usage: $progname OPTIONS
-  -c            Required: Specify the container name. Will only be built if it doesn't exist
+  -d            Required: Specify the container name. Will only be built if it doesn't exist
   -v            Required: Path within the container where the volume should be mounted
   -h            Display this help text
 ${*:-}
@@ -14,9 +14,9 @@ END
   exit 1
 }
 
-while getopts "c:v:" OPTION ; do
+while getopts "d:v:" OPTION ; do
   case $OPTION in
-    c)
+    d)
       container_name=$OPTARG
       ;;
     v)
@@ -29,7 +29,7 @@ while getopts "c:v:" OPTION ; do
 done
 
 if [ -z "$container_name" ]; then
-  echo "Please specify the container name with -c <container_name>"
+  echo "Please specify the data container name with -d <container_name>"
   exit 1
 fi
 
@@ -42,6 +42,6 @@ fi
 
 if [ -z "$(docker ps -a | grep -E '\s+'"$container_name"'\s*$')" ]; then
   # no docker containers with the term "$container_name" in their description
-  docker run --name $container_name -v $mount_path phusion/baseimage:$DATA_BASE_IMAGE_VERSION echo "Data built"
+  docker run --name $container_name -v $mount_path phusion/baseimage:$BASE_IMAGE_VERSION echo "Data built"
 fi
 

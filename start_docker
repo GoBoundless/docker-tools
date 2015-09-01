@@ -1,26 +1,27 @@
 #!/bin/bash -e
 
-if [[ -z "$DOCKER_HOST" || -z "$DOCKER_CERT_PATH" || -z "$DOCKER_TLS_VERIFY" ]]; then
-  # make sure the docker vm is up and running
-  if [ ! -f "$HOME/.boot2docker/profile" ]; then
-    mkdir -p "$HOME/.boot2docker"
-    boot2docker config > $HOME/.boot2docker/profile
-  fi
-
-  # note: on OSX you need a space after -i. On linux you do not.
-  # TODO conditionalize on OS
-  sed -i '' "s#DiskSize = 20000#DiskSize = 64000#" "$HOME/.boot2docker/profile"
-
-  boot2docker init
-  boot2docker up
-  eval "$(boot2docker shellinit)"
-
-  echo ""
-  echo ""
-  echo "Docker env loaded. Note: Repeated commands will go faster if you preload the env with the following command:"
-  echo "eval \"\$(boot2docker shellinit)\""
-  echo ""
-  echo ""
+if [[ "$(uname)" == "Linux" ]]; then
+  # we don't need to start docker on linux
+  return 0
 fi
+
+DOCKER_MACHINE_NAME=${DOCKER_MACHINE_NAME:-dev}
+
+machine_info=`docker-machine ls | grep -E '^'"$DOCKER_MACHINE_NAME"'\s+'` || true
+if [ -z "$machine_info" ]; then
+  echo "creating the virtualbox machine..."
+  docker-machine create $DOCKER_MACHINE_NAME --virtualbox-disk-size=64000 --driver virtualbox
+
+  # use google's dns server as the default one doesn't always work
+  docker-machine ssh $DOCKER_MACHINE_NAME 'echo "nameserver 8.8.8.8" > /etc/resolv.conf'
+else
+  # the virtualbox machine exists. Let's see if we need to turn it on
+  if [[ "$machine_info" != *"Running"* ]]; then
+    echo "starting the virtualbox machine..."
+    docker-machine start $DOCKER_MACHINE_NAME
+  fi
+fi
+
+eval "$(docker-machine env $DOCKER_MACHINE_NAME)"
 
 return 0
