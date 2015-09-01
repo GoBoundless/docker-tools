@@ -32,12 +32,12 @@ while getopts "fc:p:" OPTION ; do
   esac
 done
 
-if [ -z "$container_name" ]; then
+if [[ -z "$container_name" ]]; then
   echo "Please specify the container name with -c <container_name>"
   exit 1
 fi
 
-if [ -z "$docker_root" ]; then
+if [[ -z "$docker_root" ]]; then
   echo "Please specify the container name with -p <docker_root>"
   exit 1
 fi
@@ -46,21 +46,41 @@ fi
 
 need_build=false
 
-if [ "$force_rebuild" == "true" ]; then
+if [[ "$force_rebuild" == "true" ]]; then
   need_build=true
-elif [ -z "$(docker images | grep -E '^'"$container_name"'\s+')" ]; then
+elif [[ -z "$(docker images | grep -E '^'"$container_name"'\s+')" ]]; then
   # no docker containers with the term "$container_name" in their description
   need_build=true
-fi
-
-if [ "$need_build" == "true" ]; then
-  # include our ssh pub file so we can ssh into the docker instance
-  mkdir -p "$docker_root/generated"
-
-  if [ ! -f "$docker_root/generated/id_rsa.pub" ]; then
-    cp ~/.ssh/id_rsa.pub "$docker_root/generated/id_rsa.pub"
+else
+  if [[ ! -z "$(which md5sum)" ]]; then
+    md5_tool=md5sum
+  elif [[ ! -z "$(which md5)" ]]; then
+    md5_tool=md5
+  else
+    echo "No md5 tool! Forcing rebuild"
+    need_build=true
   fi
 
+  if [[ ! -z "$md5_tool" ]]; then
+    current_build_md5=$(find . \( -type f \( -name Dockerfile -o -path "./configs/*" -o -path "./container_scripts/*" -o -path "./generated/*" \) \) -exec $md5_tool "{}" \; | $md5_tool | cut -d " " -f 1)
+    mkdir -p "$docker_root/tmp"
+    build_md5_file=$docker_root/tmp/build_md5
+    if [[ ! -f "$build_md5_file" || "$(cat $build_md5_file)" != "$current_build_md5" ]]; then
+      echo "build files changed, forcing rebuild"
+      printf $current_build_md5 >$build_md5_file
+      need_build=true
+    fi
+  fi
+fi
+
+running_output="$(docker ps | grep -E '\s+'"$container_name"'\s+')" || true
+if [[ "$need_build" == "true" && ! -z "$running_output" ]]; then
+  echo "Trying to rebuild the container image but the container is already running. Stopping the existing container"
+  container_id=`echo "$running_output" | perl -e 'printf +(split(/\s+/, <>))[0]'`
+  docker stop "$container_id"
+fi
+
+if [[ "$need_build" == "true" ]]; then
   docker build -t $container_name "$docker_root"
 fi
 
